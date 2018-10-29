@@ -39,14 +39,6 @@ public class EventsController {
                 .map(p -> new DashboardEntry(p, client.fetchEventsList(p.getOrgName(), p.getRepoName())))
                 .collect(Collectors.toList());
 
-        for (DashboardEntry entry : entries) {
-            System.out.println("Project " + entry.getProject().getRepoName());
-
-            for (RepositoryEvent event: entry.getEvents()) {
-                System.out.println("   Issue" + event.getIssue());
-            }
-        }
-
         model.addAttribute("entries", entries);
 
         return "dashboard";

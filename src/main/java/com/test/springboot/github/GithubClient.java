@@ -1,6 +1,9 @@
 package com.test.springboot.github;
 
 import com.test.springboot.GithubProperties;
+
+import io.micrometer.core.instrument.MeterRegistry;
+
 import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpRequest;
@@ -17,6 +20,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Component
 public class GithubClient {
@@ -25,10 +29,11 @@ public class GithubClient {
 
     private final RestTemplate restTemplate;
 
-    public GithubClient(RestTemplateBuilder builder, GithubProperties properties) {
+    public GithubClient(RestTemplateBuilder builder, GithubProperties properties, MeterRegistry registry) {
 
         this.restTemplate = builder.
                 additionalInterceptors(new GithubAppTokenInterceptor(properties.getToken()))
+                .additionalInterceptors(new MetricsInterceptor(registry))
                 .build();
     }
 
@@ -59,5 +64,25 @@ public class GithubClient {
             return clientHttpRequestExecution.execute(httpRequest, bytes);
         }
 
+    }
+    
+    
+    private static class MetricsInterceptor implements ClientHttpRequestInterceptor {
+    	
+    	private final AtomicInteger gauge;
+    	
+    	public MetricsInterceptor(MeterRegistry meterRegistry) {
+			this.gauge = meterRegistry.gauge("github.ratelimit.remaining", new AtomicInteger(0));
+		}
+
+		@Override
+		public ClientHttpResponse intercept(HttpRequest request, byte[] body, ClientHttpRequestExecution execution)
+				throws IOException {
+			ClientHttpResponse response = execution.execute(request, body);
+			this.gauge.set(Integer.parseInt(response.getHeaders().getFirst("X-RateLimit-Remaining")));
+			
+			return response;
+		}
+    	
     }
 }
