@@ -47,7 +47,7 @@ public class EventsController {
             }
         }
 
-        model.addAllAttributes(entries);
+        model.addAttribute("entries", entries);
 
         return "dashboard";
     }
